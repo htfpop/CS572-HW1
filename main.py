@@ -8,14 +8,15 @@
 *               will compute the Spearman rank correlation       *
 *               coefficient against the Ask.com search engine    *
 *****************************************************************"""
-
+import json
 from time import sleep
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-USER_AGENT = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2810.1 Safari/537.36'}
+USER_AGENT = {
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2810.1 Safari/537.36'}
 
 
 class SearchEngine:
@@ -23,23 +24,40 @@ class SearchEngine:
 		self.query_set = None
 		self.search_engine = 'Ask.com'
 		self.queries = []
+		self.google_json = {}
 
 	def query_open(self, path):
 		with open(file=path, mode='r') as f:
 			lines = f.readlines()
 			for line in lines:
+				if line == "\n":
+					continue
 				self.queries.append(line.strip())
 
 		self.query_set = path
 
 		# check to make sure there are 100 queries
 		if len(self.queries) != 100:
-			print(f'[ERROR]: Could not find 100 Queries in {self.query_set}\r\nExiting now..\r\n')
+			print(f'[ERROR]: Could not find 100 Queries in {path}\r\nExiting now..\r\n')
+			exit(-1)
+
+	def google_query_open(self, path):
+		with open(file=path, mode='r') as f:
+			self.google_json = json.load(f)
+
+		# check to make sure there are 100 queries
+		if len(self.google_json) != 100:
+			print(f'[ERROR]: Could not find 100 json entries in {path}\r\nExiting now..\r\n')
 			exit(-1)
 
 	def get_queries(self):
+		print("---Printing 100 Queries:---")
 		for x, query in enumerate(self.queries, start=1):
 			print(f'[Query {x}]: {query}')
+
+	def get_google_json(self):
+		print("---Printing Google Json Queries:---")
+		print(json.dumps(self.google_json, indent=3))
 
 	@staticmethod
 	def search(query, sleep=True):
@@ -131,3 +149,5 @@ if __name__ == '__main__':
 	engine.query_open('./Queries/100QueriesSet3.txt')
 	print(engine)
 	engine.get_queries()
+	engine.google_query_open('./Queries/Google_Result3.json')
+	engine.get_google_json()
