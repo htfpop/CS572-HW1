@@ -169,13 +169,13 @@ def test3():
 
 
 def parser(e: SearchEngine):
-	# Use Selenium to parse JS
-	chrome_options = Options()
-	chrome_options.add_argument("--headless")
-	driver = webdriver.Chrome(chrome_options)
-
 	# sanity check to make sure we are on the same page as google json
 	for query in e.queries:
+		# Use Selenium to parse JS
+		chrome_options = Options()
+		chrome_options.add_argument("--headless")
+		driver = webdriver.Chrome(chrome_options)
+
 		# Make sure the query in list is actually inside the json file
 		if len(e.google_json[query]) != 0:
 			split_query = '+'.join(query.split())
@@ -208,6 +208,9 @@ def parser(e: SearchEngine):
 			wait = random.randrange(5, 10)
 			print(f'[SLEEP {wait}]')
 			sleep(wait)
+
+			driver.quit()
+
 
 
 if __name__ == '__main__':
