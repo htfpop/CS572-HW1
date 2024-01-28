@@ -1,21 +1,20 @@
 """ **************************************************************
 * Programmer : Christopher K. Leung (2965-7518-69)               *
 * Course ID  : CSCI572 - Information Retrieval and               *
-                         Web Search Engines                      *
+*                         Web Search Engines                     *
 * Due Date   : January 31, 2024                                  *
 * Project    : Web Search Engine Comparison                      *
 * Purpose    : This Python script will query search engines and  *
-               will compute the Spearman rank correlation        *
-               coefficient against the Ask.com search engine     *
+*               will compute the Spearman rank correlation       *
+*               coefficient against the Ask.com search engine    *
 *****************************************************************"""
 
 from time import sleep
+
 import requests
 from bs4 import BeautifulSoup
-import lxml
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 
 USER_AGENT = {
 	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2810.1 Safari/537.36'}
@@ -141,4 +140,3 @@ if __name__ == '__main__':
 	engine.query_open('./Queries/100QueriesSet3.txt')
 	print(engine)
 	engine.get_queries()
-# engine.search("Raython")
