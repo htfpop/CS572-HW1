@@ -22,7 +22,7 @@ USER_AGENT = {
 
 BASE_URL = 'http://www.ask.com/web?q='
 
-LOGFILE = './logs/log_'
+LOGFILE = './logs/log'
 
 
 class SearchEngine:
@@ -51,9 +51,9 @@ class SearchEngine:
 
 	def log_open(self):
 		now = datetime.now()
-		current_time = now.strftime("%H:%M:%S")
+		current_time = now.strftime("%m%d%Y_%H%M%S")
 		print("Current Time =", current_time)
-		self.file = open(LOGFILE+current_time, 'w')
+		self.file = open(LOGFILE+current_time+'.txt', 'w', encoding='utf-8')
 
 	def log_write(self, s):
 		self.file.write(s)
