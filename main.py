@@ -14,6 +14,7 @@ from time import sleep
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from datetime import datetime
 
@@ -23,6 +24,9 @@ USER_AGENT = {
 BASE_URL = 'http://www.ask.com/web?q='
 
 LOGFILE = './logs/log'
+
+MAX_RETRIES = 5
+TIMEOUT = 10
 
 
 class SearchEngine:
@@ -191,6 +195,7 @@ def parser(e: SearchEngine):
 		chrome_options = Options()
 		chrome_options.add_argument("--headless")
 		driver = webdriver.Chrome(chrome_options)
+		driver.set_page_load_timeout(TIMEOUT)
 
 		# Make sure the query in list is actually inside the json file
 		if len(e.google_json[query]) != 0:
@@ -201,8 +206,20 @@ def parser(e: SearchEngine):
 			print(f'[Processing]: {query} - {final_query}\r')
 			e.log_write(f'[Processing]: {query} - {final_query}\r\n')
 
+			count1 = 0
 			# fetch Ask.com
-			driver.get(final_query)
+			while count1 < MAX_RETRIES:
+				try:
+					driver.get(final_query)
+					break
+				except TimeoutException:
+					print(f'[ERROR]: Ask.com request timeout\r')
+					count1 += 1
+
+			if count1 == MAX_RETRIES:
+				print(f'Cannot scrape, Exiting...\r\n')
+				exit(-100)
+
 
 			# using BS4 to process Ask.com
 			soup = BeautifulSoup(driver.page_source, 'html.parser')
@@ -223,13 +240,36 @@ def parser(e: SearchEngine):
 				print(f'{header} ||| {link}')
 				e.log_write(f'{header} ||| {link}\r\n')
 
-				driver.get(link)
+				count2 = 0
+				# fetch actual website
+				while count2 < MAX_RETRIES:
+					try:
+						driver.get(link)
+						break
+					except TimeoutException:
+						print(f'PAGE REQUEST TIMEOUT RETRYING: {header} ||| {link}\r')
+
+						# Quit Selenium
+						driver.quit()
+
+						# Re-initialize Selenium
+						driver = webdriver.Chrome(chrome_options)
+
+						# Invoke sleep to prevent IP Ban
+						sleep(10)
+
+						count2 += 1
+
+				if count2 == MAX_RETRIES:
+					print(f'Cannot fetch websites, Exiting...\r\n')
+					exit(-200)
+
 				#driver.implicitly_wait(5)
 				fetch = driver.current_url
 				if link != fetch:
 					# printout
 					e.log_write(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}\r')
-					print(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}')
+					print(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}\r')
 				#e.urlSet.add(link)
 
 			#wait = random.randrange(5, 10)
