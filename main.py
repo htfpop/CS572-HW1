@@ -10,21 +10,12 @@
 *****************************************************************"""
 
 from time import sleep
-
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-USER_AGENT = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2810.1 Safari/537.36'}
-
-
-def pre_check():
-	try:
-		import bs4
-	except ImportError:
-		print('[DEPENDENCY]: Could not import BeautifulSoup4. Please run \'pip install bs4\'')
+USER_AGENT = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2810.1 Safari/537.36'}
 
 
 class SearchEngine:
