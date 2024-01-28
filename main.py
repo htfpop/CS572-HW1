@@ -15,11 +15,14 @@ import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from datetime import datetime
 
 USER_AGENT = {
 	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2810.1 Safari/537.36'}
 
 BASE_URL = 'http://www.ask.com/web?q='
+
+LOGFILE = './logs/log_'
 
 
 class SearchEngine:
@@ -29,6 +32,7 @@ class SearchEngine:
 		self.queries = []
 		self.google_json = {}
 		self.urlSet = set()
+		self.file = None
 
 	def query_open(self, path):
 		with open(file=path, mode='r') as f:
@@ -44,6 +48,18 @@ class SearchEngine:
 		if len(self.queries) != 100:
 			print(f'[ERROR]: Could not find 100 Queries in {path}\r\nExiting now..\r\n')
 			exit(-1)
+
+	def log_open(self):
+		now = datetime.now()
+		current_time = now.strftime("%H:%M:%S")
+		print("Current Time =", current_time)
+		self.file = open(LOGFILE+current_time, 'w')
+
+	def log_write(self, s):
+		self.file.write(s)
+
+	def log_close(self):
+		self.file.close()
 
 	def google_query_open(self, path):
 		with open(file=path, mode='r') as f:
@@ -180,7 +196,10 @@ def parser(e: SearchEngine):
 		if len(e.google_json[query]) != 0:
 			split_query = '+'.join(query.split())
 			final_query = BASE_URL + split_query
+
+			# printout
 			print(f'[Processing]: {query} - {final_query}\r')
+			e.log_write(f'[Processing]: {query} - {final_query}\r\n')
 
 			# fetch Ask.com
 			driver.get(final_query)
@@ -188,7 +207,9 @@ def parser(e: SearchEngine):
 			# using BS4 to process Ask.com
 			soup = BeautifulSoup(driver.page_source, 'html.parser')
 
+			# printout
 			print(f'Results from {final_query}\r')
+			e.log_write(f'Results from {final_query}\r\n')
 
 			#urls = soup.find_all('div', class_="result-url-section")
 			titles = soup.find_all('div', class_="result-title")
@@ -197,20 +218,29 @@ def parser(e: SearchEngine):
 				t_title = title.find_next('a')
 				link = t_title['href']
 				header = t_title['title']
+
+				# printout
 				print(f'{header} ||| {link}')
+				e.log_write(f'{header} ||| {link}\r\n')
+
 				driver.get(link)
 				#driver.implicitly_wait(5)
 				fetch = driver.current_url
 				if link != fetch:
+					# printout
+					e.log_write(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}\r')
 					print(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}')
 				#e.urlSet.add(link)
 
-			wait = random.randrange(5, 10)
+			#wait = random.randrange(5, 10)
+			wait = 3
+			# printout
 			print(f'[SLEEP {wait}]')
+			e.log_write(f'[SLEEP {wait}]\r\n')
+
 			sleep(wait)
 
-			driver.quit()
-
+			#driver.quit()
 
 
 if __name__ == '__main__':
@@ -220,11 +250,13 @@ if __name__ == '__main__':
 	print("------------------------------------------")
 
 	engine = SearchEngine()
+	engine.log_open()
 	engine.query_open('./Queries/100QueriesSet3.txt')
 	# print(engine)
 	# engine.get_queries()
 	engine.google_query_open('./Queries/Google_Result3.json')
 	# engine.get_google_json()
 	parser(engine)
+	engine.log_close()
 	# test2(engine)
 	# test3()
