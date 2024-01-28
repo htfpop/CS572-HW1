@@ -9,6 +9,7 @@
 *               coefficient against the Ask.com search engine    *
 *****************************************************************"""
 import json
+import random
 from time import sleep
 import requests
 from bs4 import BeautifulSoup
@@ -18,6 +19,8 @@ from selenium.webdriver.chrome.options import Options
 USER_AGENT = {
 	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2810.1 Safari/537.36'}
 
+BASE_URL = 'http://www.ask.com/web?q='
+
 
 class SearchEngine:
 	def __init__(self):
@@ -25,6 +28,7 @@ class SearchEngine:
 		self.search_engine = 'Ask.com'
 		self.queries = []
 		self.google_json = {}
+		self.urlSet = set()
 
 	def query_open(self, path):
 		with open(file=path, mode='r') as f:
@@ -139,6 +143,73 @@ def test():
 	"""
 
 
+def test2(e: SearchEngine):
+	"""
+	testing json accesses
+	:param e: search engine object
+	:return: none
+	"""
+	print(f'Len of e json: {len(e.google_json)}')
+
+	for key in e.google_json:
+		for val in range(len(e.google_json[key])):
+			print(f'KEY: {key} ||| VAL: {e.google_json[key][val]}')
+
+
+def test3():
+	"""
+	Testing to see if I can get a redirect link
+	:return: none
+	"""
+	driver = webdriver.Chrome()
+	link = 'http://www.has-sante.fr/portail/jcms/c_676945/fr/prialt-ct-5245'
+
+	driver.get(link)
+	print(driver.current_url)
+
+
+def parser(e: SearchEngine):
+	# Use Selenium to parse JS
+	chrome_options = Options()
+	chrome_options.add_argument("--headless")
+	driver = webdriver.Chrome(chrome_options)
+
+	# sanity check to make sure we are on the same page as google json
+	for query in e.queries:
+		# Make sure the query in list is actually inside the json file
+		if len(e.google_json[query]) != 0:
+			split_query = '+'.join(query.split())
+			final_query = BASE_URL + split_query
+			print(f'[Processing]: {query} - {final_query}\r')
+
+			# fetch Ask.com
+			driver.get(final_query)
+
+			# using BS4 to process Ask.com
+			soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+			print(f'Results from {final_query}\r')
+
+			#urls = soup.find_all('div', class_="result-url-section")
+			titles = soup.find_all('div', class_="result-title")
+
+			for title in titles:
+				t_title = title.find_next('a')
+				link = t_title['href']
+				header = t_title['title']
+				print(f'{header} ||| {link}')
+				driver.get(link)
+				#driver.implicitly_wait(5)
+				fetch = driver.current_url
+				if link != fetch:
+					print(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}')
+				#e.urlSet.add(link)
+
+			wait = random.randrange(5, 10)
+			print(f'[SLEEP {wait}]')
+			sleep(wait)
+
+
 if __name__ == '__main__':
 	# test()
 	print("------------------------------------------")
@@ -147,7 +218,10 @@ if __name__ == '__main__':
 
 	engine = SearchEngine()
 	engine.query_open('./Queries/100QueriesSet3.txt')
-	print(engine)
-	engine.get_queries()
+	# print(engine)
+	# engine.get_queries()
 	engine.google_query_open('./Queries/Google_Result3.json')
-	engine.get_google_json()
+	# engine.get_google_json()
+	parser(engine)
+	# test2(engine)
+	# test3()
