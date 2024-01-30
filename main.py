@@ -26,7 +26,7 @@ BASE_URL = 'http://www.ask.com/web?q='
 LOGFILE = './logs/log'
 
 MAX_RETRIES = 5
-TIMEOUT = 10
+TIMEOUT = 30
 
 
 class SearchEngine:
@@ -53,11 +53,11 @@ class SearchEngine:
 			print(f'[ERROR]: Could not find 100 Queries in {path}\r\nExiting now..\r\n')
 			exit(-1)
 
-	def log_open(self):
+	def log_open(self, i = 1):
 		now = datetime.now()
 		current_time = now.strftime("%m%d%Y_%H%M%S")
 		print("Current Time =", current_time)
-		self.file = open(LOGFILE+current_time+'.txt', 'w', encoding='utf-8')
+		self.file = open(LOGFILE+current_time+f'_i{i}'+'.txt', 'w', encoding='utf-8')
 
 	def log_write(self, s):
 		self.file.write(s)
@@ -192,9 +192,10 @@ def parser(e: SearchEngine):
 	# sanity check to make sure we are on the same page as google json
 	for query in e.queries:
 		# Use Selenium to parse JS
-		chrome_options = Options()
-		chrome_options.add_argument("--headless")
-		driver = webdriver.Chrome(chrome_options)
+		#chrome_options = Options()
+		#chrome_options.add_argument("--headless")
+		#driver = webdriver.Chrome(chrome_options)
+		driver = webdriver.Chrome()
 		driver.set_page_load_timeout(TIMEOUT)
 
 		# Make sure the query in list is actually inside the json file
@@ -236,15 +237,19 @@ def parser(e: SearchEngine):
 				link = t_title['href']
 				header = t_title['title']
 
-				# printout
-				print(f'{header} ||| {link}')
-				e.log_write(f'{header} ||| {link}\r\n')
-
 				count2 = 0
 				# fetch actual website
 				while count2 < MAX_RETRIES:
 					try:
+						sleep_val = random.randrange(5, 10)
+						sleep(sleep_val)
+
 						driver.get(link)
+
+						# printout
+						print(f'[{sleep_val} sec]: {header} ||| {link}')
+						e.log_write(f'[{sleep_val} sec]: {header} ||| {link}\r\n')
+
 						break
 					except TimeoutException:
 						print(f'PAGE REQUEST TIMEOUT RETRYING: {header} ||| {link}\r')
@@ -253,10 +258,11 @@ def parser(e: SearchEngine):
 						driver.quit()
 
 						# Re-initialize Selenium
-						driver = webdriver.Chrome(chrome_options)
+						#driver = webdriver.Chrome(chrome_options)
+						driver = webdriver.Chrome()
 
 						# Invoke sleep to prevent IP Ban
-						sleep(10)
+						sleep(random.randrange(10))
 
 						count2 += 1
 
@@ -289,14 +295,19 @@ if __name__ == '__main__':
 	print(" CSCI-572 | Web Search Engine Comparison  ")
 	print("------------------------------------------")
 
-	engine = SearchEngine()
-	engine.log_open()
-	engine.query_open('./Queries/100QueriesSet3.txt')
-	# print(engine)
-	# engine.get_queries()
-	engine.google_query_open('./Queries/Google_Result3.json')
-	# engine.get_google_json()
-	parser(engine)
-	engine.log_close()
-	# test2(engine)
-	# test3()
+	for x in range(5):
+		print(f'ITERATION {x}\r\n')
+
+		engine = SearchEngine()
+		engine.log_open(x)
+		engine.query_open('./Queries/100QueriesSet3.txt')
+		# print(engine)
+		# engine.get_queries()
+		engine.google_query_open('./Queries/Google_Result3.json')
+		# engine.get_google_json()
+		parser(engine)
+		engine.log_close()
+		# test2(engine)
+		# test3()
+
+		engine = None
