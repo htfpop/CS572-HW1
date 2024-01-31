@@ -64,7 +64,7 @@ class SearchEngine:
 		current_time = now.strftime("%m%d%Y_%H%M%S")
 		CURRENT_TIME = current_time
 		print("Current Time =", CURRENT_TIME)
-		self.file = open(LOGFILE + CURRENT_TIME + f'_i{i}' + '.txt', 'w', encoding='utf-8')
+		self.file = open(LOGFILE + CURRENT_TIME + f'_i{i}' + '.txt', 'w', encoding='utf-8', buffering=1)
 
 	def json_open(self, i=1):
 		global CURRENT_TIME
@@ -271,6 +271,10 @@ def parser(e: SearchEngine):
 			cumulative_sum = 0
 			rho = 0
 			for title in titles:
+				if len(result_list) == 10:
+					e.log_write(f'---Found 10 entries for this query---')
+					break
+
 				t_title = title.find_next('a')
 				link = t_title['href']
 				header = t_title['title']
@@ -319,6 +323,7 @@ def parser(e: SearchEngine):
 					# printout
 					e.log_write(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}\r')
 
+				hit = False
 				# Check if we have a match
 				for url in range(len(g_query_list)):
 					if g_query_list[url] == sanitized_url:
@@ -326,14 +331,17 @@ def parser(e: SearchEngine):
 							f'[MATCHED]: google index {url + 1} ||| ask index {webpage_index} ||| {g_query_list[url]} ||| {sanitized_url}\r')
 						query_hits += 1
 						google_index = url + 1
-					elif g_query_list[url] == url_filter(fetch):
+						hit = True
+					elif g_query_list[url] == url_filter(fetch) and not result_list.__contains__(fetch):
 						e.log_write(
 							f'[MATCHED]: google index {url + 1} ||| ask index {webpage_index} ||| {g_query_list[url]} ||| {fetch}\r')
 						query_hits += 1
 						google_index = url + 1
+						hit = True
 
-				# calculate cumulative sum
-				cumulative_sum += (google_index - webpage_index) ** 2
+				if hit:
+					# calculate cumulative sum
+					cumulative_sum += (google_index - webpage_index) ** 2
 
 				# increment webpage index to keep track of next webpage
 				webpage_index += 1
@@ -344,7 +352,7 @@ def parser(e: SearchEngine):
 			elif query_hits == 1:
 				rho = 1
 			else:
-				rho = 1 - ((6 * cumulative_sum) / (query_hits ** 3) - query_hits)
+				rho = 1 - ((6 * cumulative_sum) / ((query_hits ** 3) - query_hits))
 
 			# Complete parse through all titles, quit Selenium for refresh
 			driver.quit()
@@ -405,13 +413,14 @@ def print_summary(e: SearchEngine):
 		rho = data['rho']
 		e.log_write(f'Query {query}: Hits: {hits} ||| Overlap: {overlap} ||| Rho: {rho}')
 
+
 if __name__ == '__main__':
 	# test()
 	print("------------------------------------------")
 	print(" CSCI-572 | Web Search Engine Comparison  ")
 	print("------------------------------------------")
 
-	for x in range(3):
+	for x in range(5):
 		print(f'ITERATION {x}\r\n')
 
 		engine = SearchEngine()
@@ -423,11 +432,12 @@ if __name__ == '__main__':
 		engine.google_query_open('./Queries/Google_Result3.json')
 		# engine.get_google_json()
 		parser(engine)
+
+		print_summary(engine)
 		# test4()
 		engine.log_close()
 		engine.json_close()
 		# test2(engine)
 		# test3()
-		print_summary(engine)
 
 		engine = None
