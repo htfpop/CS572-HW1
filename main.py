@@ -30,6 +30,9 @@ TIMEOUT = 30
 
 CURRENT_TIME = ""
 
+summary = {}
+
+
 class SearchEngine:
 	def __init__(self):
 		self.query_set = None
@@ -68,6 +71,7 @@ class SearchEngine:
 		self.json = open(LOGFILE + CURRENT_TIME + f'_i{i}' + '.json', 'w')
 
 	def log_write(self, s):
+		print(s)
 		self.file.write(s)
 
 	def log_close(self):
@@ -203,6 +207,7 @@ def test3():
 
 
 def parser(e: SearchEngine):
+	global summary
 	# sanity check to make sure we are on the same page as google json
 	out_dict = {}
 	curr_query = 1
@@ -235,7 +240,6 @@ def parser(e: SearchEngine):
 			final_query = BASE_URL + split_query
 
 			# printout
-			print(f'[Processing]: {query} - {final_query}\r')
 			e.log_write(f'[Processing]: {query} - {final_query}\r\n')
 
 			count1 = 0
@@ -256,33 +260,40 @@ def parser(e: SearchEngine):
 			soup = BeautifulSoup(driver.page_source, 'html.parser')
 
 			# printout
-			print(f'Results from {final_query}\r')
-			e.log_write(f'Results from {final_query}\r\n')
+			e.log_write(f'Results from {final_query}\r')
 
 			# urls = soup.find_all('div', class_="result-url-section")
 			titles = soup.find_all('div', class_="result-title")
 
+			# for calculating spearman's
+			webpage_index = 1
+			google_index = 0
+			cumulative_sum = 0
+			rho = 0
 			for title in titles:
 				t_title = title.find_next('a')
 				link = t_title['href']
 				header = t_title['title']
 
+				# sanitize entire url
 				sanitized_url = url_filter(link)
+
+				# sanitize only ending to keep http / https
+				no_uid = no_uid_url(link)
 
 				count2 = 0
 				# fetch actual website
 				while count2 < MAX_RETRIES:
 					try:
-						sleep_val = random.randrange(5, 15)
+						sleep_val = random.randrange(5, 7)
 						sleep(sleep_val)
 
 						driver.get(link)
 
 						# printout
-						print(f'[{sleep_val} sec]: {header} ||| {link}')
-						e.log_write(f'[{sleep_val} sec]: {header} ||| {link}\r\n')
+						e.log_write(f'[{sleep_val} sec]: {header} ||| {sanitized_url}\r')
 
-						result_list.append(link)
+						result_list.append(no_uid)
 
 						break
 					except TimeoutException:
@@ -303,35 +314,49 @@ def parser(e: SearchEngine):
 					print(f'Cannot fetch websites, Exiting...\r\n')
 					exit(-200)
 
-				# driver.implicitly_wait(5)
 				fetch = driver.current_url
 				if link != fetch:
 					# printout
 					e.log_write(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}\r')
-					print(f'[Link Redirect]: OLD: {link} ||| NEW: {fetch}\r')
 
 				# Check if we have a match
 				for url in range(len(g_query_list)):
 					if g_query_list[url] == sanitized_url:
-						print(f'[MATCHED]: {g_query_list[url]} ||| {sanitized_url}\r')
-						e.log_write(f'[MATCHED]: {g_query_list[url]} ||| {sanitized_url}\r')
+						e.log_write(
+							f'[MATCHED]: google index {url + 1} ||| ask index {webpage_index} ||| {g_query_list[url]} ||| {sanitized_url}\r')
 						query_hits += 1
+						google_index = url + 1
 					elif g_query_list[url] == url_filter(fetch):
-						print(f'[MATCHED]: {g_query_list[url]} ||| {fetch}\r')
-						e.log_write(f'[MATCHED]: {g_query_list[url]} ||| {fetch}\r')
+						e.log_write(
+							f'[MATCHED]: google index {url + 1} ||| ask index {webpage_index} ||| {g_query_list[url]} ||| {fetch}\r')
 						query_hits += 1
+						google_index = url + 1
 
+				# calculate cumulative sum
+				cumulative_sum += (google_index - webpage_index) ** 2
+
+				# increment webpage index to keep track of next webpage
+				webpage_index += 1
+
+			# spearman's calculation
+			if query_hits == 0:
+				rho = 0
+			elif query_hits == 1:
+				rho = 1
+			else:
+				rho = 1 - ((6 * cumulative_sum) / (query_hits ** 3) - query_hits)
+
+			# Complete parse through all titles, quit Selenium for refresh
 			driver.quit()
 
 			append = {curr_query_str: result_list}
 			out_dict.update(append)
 
-		print(f'Total Query Hits: {query_hits} out of {len(g_query_list)}\r')
-		e.log_write(f'Total Query Hits: {query_hits} out of {len(g_query_list)}\r')
+			e.log_write(f'Query {curr_query} Hits: {query_hits} ||| Overlap: {query_hits / 10} ||| rho: {rho}\r')
+			summary.update({'Query ' + str(curr_query): {'q_hits': query_hits, 'overlap': query_hits / 10, 'rho': rho}})
 
 		wait = 3
 		# printout
-		print(f'[SLEEP {wait}]')
 		e.log_write(f'[SLEEP {wait}]\r\n')
 		sleep(wait)
 
@@ -339,8 +364,24 @@ def parser(e: SearchEngine):
 
 	e.json_write(out_dict)
 
+
 def url_filter(url: str):
-	return url.replace('https://www.', '').replace('http://www.', '').replace('https://', '').replace('http://', '').rstrip('/')
+	temp_url = url.replace('https://www.', '').replace('http://www.', '').replace('https://', '').replace('http://',
+	                                                                                                      '').rstrip(
+		'/')
+	index = temp_url.find('?utm_content=')
+	if index > 0:
+		return temp_url[:index]
+
+	return temp_url
+
+
+def no_uid_url(url: str):
+	ret_url = url
+	index = ret_url.find('?utm_content=')
+	if index > 0:
+		return ret_url[:index]
+	return url
 
 
 def test4():
@@ -348,7 +389,7 @@ def test4():
 		'query1': ['value1', 'value2', 'value3']
 	}
 
-	temp = {'query2':['value11', 'value12', 'value31']}
+	temp = {'query2': ['value11', 'value12', 'value31']}
 
 	data.update(temp)
 
@@ -356,7 +397,13 @@ def test4():
 		json.dump(data, json_file, indent=3)
 
 
-
+def print_summary(e: SearchEngine):
+	global summary
+	for query, data in summary.items():
+		hits = data['q_hits']
+		overlap = data['overlap']
+		rho = data['rho']
+		e.log_write(f'Query {query}: Hits: {hits} ||| Overlap: {overlap} ||| Rho: {rho}')
 
 if __name__ == '__main__':
 	# test()
@@ -364,7 +411,7 @@ if __name__ == '__main__':
 	print(" CSCI-572 | Web Search Engine Comparison  ")
 	print("------------------------------------------")
 
-	for x in range(5):
+	for x in range(3):
 		print(f'ITERATION {x}\r\n')
 
 		engine = SearchEngine()
@@ -376,10 +423,11 @@ if __name__ == '__main__':
 		engine.google_query_open('./Queries/Google_Result3.json')
 		# engine.get_google_json()
 		parser(engine)
-		#test4()
+		# test4()
 		engine.log_close()
 		engine.json_close()
 		# test2(engine)
 		# test3()
+		print_summary(engine)
 
 		engine = None
