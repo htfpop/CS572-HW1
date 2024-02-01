@@ -270,6 +270,8 @@ def parser(e: SearchEngine):
 			google_index = 0
 			cumulative_sum = 0
 			rho = 0
+			google_rank = []
+			ask_rank = []
 			for title in titles:
 				if len(result_list) == 10:
 					e.log_write(f'---Found 10 entries for this query---')
@@ -289,7 +291,7 @@ def parser(e: SearchEngine):
 				# fetch actual website
 				while count2 < MAX_RETRIES:
 					try:
-						sleep_val = random.randrange(5, 7)
+						sleep_val = random.randrange(1, 3)
 						sleep(sleep_val)
 
 						driver.get(link)
@@ -331,12 +333,16 @@ def parser(e: SearchEngine):
 							f'[MATCHED]: google index {url + 1} ||| ask index {webpage_index} ||| {g_query_list[url]} ||| {sanitized_url}\r')
 						query_hits += 1
 						google_index = url + 1
+						google_rank.append(google_index)
+						ask_rank.append(webpage_index)
 						hit = True
 					elif g_query_list[url] == url_filter(fetch) and not result_list.__contains__(fetch):
 						e.log_write(
 							f'[MATCHED]: google index {url + 1} ||| ask index {webpage_index} ||| {g_query_list[url]} ||| {fetch}\r')
 						query_hits += 1
 						google_index = url + 1
+						google_rank.append(google_index)
+						ask_rank.append(webpage_index)
 						hit = True
 
 				if hit:
@@ -350,7 +356,13 @@ def parser(e: SearchEngine):
 			if query_hits == 0:
 				rho = 0
 			elif query_hits == 1:
-				rho = 1
+				# Capture the following:
+				# if Rank in your result = Rank in Google result → rho=1
+				# if Rank in your result ≠ Rank in Google result → rho=0
+				if google_rank[0] == ask_rank[0]:
+					rho = 1
+				else:
+					rho = 0
 			else:
 				rho = 1 - ((6 * cumulative_sum) / ((query_hits ** 3) - query_hits))
 
@@ -407,11 +419,20 @@ def test4():
 
 def print_summary(e: SearchEngine):
 	global summary
+	avg_hits = 0
+	avg_overlap = 0
+	avg_rho = 0
 	for query, data in summary.items():
 		hits = data['q_hits']
+		avg_hits += hits
 		overlap = data['overlap']
+		avg_overlap += overlap
 		rho = data['rho']
-		e.log_write(f'Query {query}: Hits: {hits} ||| Overlap: {overlap} ||| Rho: {rho}')
+		avg_rho += rho
+		e.log_write(f'Query {query}: Hits: {hits} ||| Overlap: {overlap} ||| Rho: {rho}\r')
+
+	e.log_write(f'Avg hit: {avg_hits/100} ||| Avg Overlap {avg_overlap/100} ||| Avg Rho: {avg_rho/100}\r')
+
 
 
 if __name__ == '__main__':
